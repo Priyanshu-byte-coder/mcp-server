@@ -200,8 +200,62 @@ def _render_placeholder_table(payload: dict[str, Any]) -> str:
     """
 
 
+def _render_token_usage_table(payload: dict[str, Any]) -> str:
+    results = payload.get("results", [])
+    rows = []
+    max_total = max((_number(result.get("total_tokens")) or 0 for result in results), default=0)
+    for result in results:
+        total = result.get("total_tokens")
+        rows.append(
+            "<tr>"
+            f'<td><span class="benchmark-name">{_escape(result.get("name", "-"))}</span></td>'
+            f"<td>{_escape(result.get('tool_count', '-'))}</td>"
+            f"<td>{_escape(result.get('instructions_tokens', '-'))}</td>"
+            f"<td>{_escape(result.get('tools_tokens', '-'))}</td>"
+            f"<td>{_escape(total if total is not None else '-')}</td>"
+            "<td>"
+            '<div class="bar-track">'
+            f'<span class="bar bar-p50" style="width: {_bar_width(total, max_total)}"></span>'
+            "</div>"
+            "</td>"
+            "</tr>"
+        )
+
+    if not rows:
+        rows.append('<tr><td colspan="6">No token usage results found.</td></tr>')
+
+    estimator = _escape(payload.get("estimator", "-"))
+
+    return f"""
+        <section>
+          <div class="section-header">
+            <div>
+              <h2>Token usage</h2>
+              <p>Context a client receives before any tool runs. Tokens estimated as {estimator}.</p>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Benchmark</th>
+                <th>Tools</th>
+                <th>Instructions</th>
+                <th>Tool schemas</th>
+                <th>Total</th>
+                <th>Relative size</th>
+              </tr>
+            </thead>
+            <tbody>
+              {"".join(rows)}
+            </tbody>
+          </table>
+        </section>
+    """
+
+
 SUITE_RENDERERS: dict[str, SectionRenderer] = {
     "latency": _render_latency_table,
+    "token_usage": _render_token_usage_table,
 }
 
 

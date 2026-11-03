@@ -20,6 +20,7 @@ This writes local output to:
 
 ```text
 benchmark-results/latency.json
+benchmark-results/token_usage.json
 benchmark-results/index.html
 ```
 
@@ -27,7 +28,7 @@ benchmark-results/index.html
 
 ## Current Scope
 
-The current benchmark suite measures latency only. Latency uses `pytest-benchmark` for warmup, repeated rounds, and timing collection. The project writes a small normalized JSON file so the HTML report can use the same format when future benchmark suites are added.
+The benchmark suite measures latency and token usage. Latency uses `pytest-benchmark` for warmup, repeated rounds, and timing collection. The project writes a small normalized JSON file so the HTML report can use the same format when future benchmark suites are added.
 
 Covered latency cases:
 
@@ -53,6 +54,14 @@ Preview benchmarks use `confirmed=False`, so they do not submit jobs to Kubernet
 
 `fine_tune` GPU pre-check is patched inside the benchmark so the benchmark can run without a cluster.
 
+Token usage measures the context a client receives before any tool runs: the server instructions plus the `tools/list` payload (name, description, input and output schema of each tool). It runs with the `platform-admin` persona so every mode is compared on the full tool set. Tokens are estimated as `ceil(characters / 4)` with no extra dependencies, so the numbers compare modes and tools rather than predict a specific model's count.
+
+Covered token usage cases:
+
+- static surface for each mode (`full`, `progressive`, `semantic`) × instruction tier (`full`, `compact`, `minimal`)
+- `full` mode tool schemas grouped by tool category (`planning`, `discovery`, `training`, …)
+- a check that `progressive` and `semantic` tool schemas stay smaller than `full`
+
 ## Output Format
 
 Latency results use this shape:
@@ -76,6 +85,25 @@ Latency results use this shape:
 }
 ```
 
+Token usage results use this shape:
+
+```json
+{
+  "suite": "token_usage",
+  "estimator": "ceil(characters / 4)",
+  "results": [
+    {
+      "name": "surface_semantic_full",
+      "unit": "tokens",
+      "tool_count": 2,
+      "instructions_tokens": 1526,
+      "tools_tokens": 334,
+      "total_tokens": 1860
+    }
+  ]
+}
+```
+
 ## Report
 
 The HTML report is generated from benchmark JSON files.
@@ -90,6 +118,7 @@ Current report includes:
 - P99/P50 tail ratio
 - visual spread bars
 - summary cards
+- token usage per mode, tier and tool category, with relative size bars
 
 Open:
 
@@ -102,7 +131,6 @@ benchmark-results/index.html
 Planned benchmark files:
 
 ```text
-tests/benchmarks/test_token_usage.py
 tests/benchmarks/test_cpu_profile.py
 tests/benchmarks/test_memory.py
 ```
@@ -110,14 +138,12 @@ tests/benchmarks/test_memory.py
 Planned output files:
 
 ```text
-benchmark-results/token_usage.json
 benchmark-results/cpu_profile.json
 benchmark-results/memory.json
 ```
 
 Recommended tools:
 
-- token usage: custom estimator
 - CPU profile: Python `cProfile`
 - memory profile: Python `tracemalloc`
 
